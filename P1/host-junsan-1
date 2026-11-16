@@ -1,0 +1,10 @@
+# ============================================================
+# host-junsan-1 : BADASS Part 1 - end device
+# ============================================================
+# Image    : badass-host:1.0  (built from ./host/Dockerfile)
+# Base     : alpine:3.22  -> userland is busybox (sh, ip, ping)
+# Adapters : 1 (eth0)
+# IP       : none by default (subject requirement)
+#            only the kernel-generated IPv6 link-local (fe80::/64) appears
+# Console  : telnet via GNS3 -> /bin/sh
+# ============================================================

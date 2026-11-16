@@ -1,0 +1,22 @@
+# ============================================================
+# router-junsan-2 : BADASS Part 1 - router
+# ============================================================
+# Image    : badass-router:1.0  (built from ./router/Dockerfile)
+# Base     : quay.io/frrouting/frr:10.7.0 (Alpine, busybox, iproute2)
+# Adapters : 4 (eth0-eth3), reused in Part 2/3
+# IP       : none by default (subject requirement)
+# Console  : telnet via GNS3 -> bash (start.sh)
+#
+# --- /etc/frr/daemons (enabled routing services) ---
+# zebra  : always running, installs routes into the kernel
+bgpd=yes     # BGP   -> overlay control plane (EVPN) in Part 3
+ospfd=yes    # OSPF  -> underlay routing in Part 3
+isisd=yes    # IS-IS -> required by the subject, not used
+#
+# --- /etc/frr/frr.conf (startup config) ---
+# frr defaults traditional
+# log stdout
+#
+# --- /etc/frr/vtysh.conf ---
+# service integrated-vtysh-config   (all daemons share frr.conf)
+# ============================================================
