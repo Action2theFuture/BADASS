@@ -95,6 +95,18 @@ def find_project(name):
     return None
 
 
+def remove_stale_containers(pid):
+    """Containers GNS3 left behind (VM crash / reboot without closing the project).
+    GNS3 names them GNS3.<node>.<project_id>; opening the project would fail with
+    'Docker 409 Conflict: container name already in use'."""
+    out = subprocess.run(["docker", "ps", "-aq", "--filter", f"name={pid}"],
+                         capture_output=True, text=True)
+    ids = out.stdout.split()
+    if ids:
+        subprocess.run(["docker", "rm", "-f", *ids], capture_output=True)
+        print(f"[*] removed {len(ids)} stale container(s) of a previous session")
+
+
 def project_file(name):
     part = name.split("-")[0]                      # P2-xxx -> P2 folder
     path = os.path.join(REPO, part, f"{name}.gns3project")
@@ -117,6 +129,7 @@ def up(name, fresh=False):
             p = api("POST", f"/projects/{uuid.uuid4()}/import?name={name}", raw=f.read())
     pid = p["project_id"]
     if p.get("status") != "opened":
+        remove_stale_containers(pid)
         api("POST", f"/projects/{pid}/open")
     # import sets auto_close=true: the project would close when no client is watching
     api("PUT", f"/projects/{pid}", body={"auto_close": False})

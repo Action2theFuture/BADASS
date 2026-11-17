@@ -23,7 +23,8 @@ case "${1:-}" in
     p2s|p2)  test_p2s ;;
     p2g|p2m) test_p2g ;;
     p3)      test_p3 ;;
-    all)     test_p1; test_p2s; test_p2g; test_p3 ;;
+    all)     test_p1; test_p2s; test_p2g; test_p3
+             $CTL down >/dev/null ;;   # free the VM after a full run
     *)       echo "usage: $0 {p1|p2s|p2g|p3|all}"; exit 2 ;;
 esac
 

@@ -59,6 +59,7 @@ images: sync
 
 ## copy host edits into the VM (one-way, host -> VM)
 sync:
+	@$(VAGRANT) status --machine-readable | grep -q ',state,running' || $(VAGRANT) up
 	@$(VAGRANT) rsync >/dev/null && echo "[+] host -> VM sync done"
 
 # ---------------------------------------------------------------- tests --
