@@ -100,6 +100,27 @@ fi
 sudo setupcon --force >/dev/null 2>&1 || true   # may fail over ssh; applied at next boot anyway
 ok "lightdm session=xfce, XKBLAYOUT=${KB_LAYOUT}"
 
+# Fix black screen after login (VirtualBox on Apple Silicon only):
+# arm64 VMs get the QemuRamFB controller = fixed-size framebuffer (simpledrm).
+# VBoxClient resizes the screen to the window size (e.g. 1284x840_vbox) at login,
+# which RamFB cannot display -> black screen. Hide VBoxClient autostart for this user.
+if [ "$ARCH" = "arm64" ] && grep -qil "VBoxClient" /etc/xdg/autostart/*.desktop 2>/dev/null; then
+    mkdir -p "$HOME/.config/autostart"
+    for f in $(grep -il "VBoxClient" /etc/xdg/autostart/*.desktop); do
+        dst="$HOME/.config/autostart/$(basename "$f")"
+        cp "$f" "$dst"
+        grep -q '^Hidden=true' "$dst" || echo "Hidden=true" >> "$dst"
+    done
+    ok "VBoxClient autostart hidden (arm64 RamFB black-screen fix)"
+fi
+# Second launch path: the X session script also starts the resizer (VBoxClient --vmsvga-session).
+# Replace that one command with ':' (no-op keeps the shell block valid). Idempotent.
+XCLIENT=/etc/X11/Xsession.d/98vboxadd-xclient
+if [ "$ARCH" = "arm64" ] && [ -f "$XCLIENT" ] && grep -q '^[[:space:]]*/usr/bin/VBoxClient --vmsvga-session' "$XCLIENT"; then
+    sudo sed -i 's|^\([[:space:]]*\)/usr/bin/VBoxClient --vmsvga-session|\1: # BADASS disabled (RamFB): /usr/bin/VBoxClient --vmsvga-session|' "$XCLIENT"
+    ok "VBoxClient --vmsvga-session disabled in $XCLIENT"
+fi
+
 # --- 6. Verification ---------------------------------------------------------
 log "Step 6/6: verification"
 PYQT_CHECK="from PyQt6 import QtCore, QtGui, QtNetwork, QtWidgets, QtSvg, QtSvgWidgets, QtWebSockets, sip; print(QtCore.PYQT_VERSION_STR)"
@@ -112,7 +133,7 @@ echo "PyQt6 (venv)  : $("$GUI_PY" -c "$PYQT_CHECK" 2>/dev/null || echo 'FAIL')"
 echo "ubridge       : $(ubridge -v 2>/dev/null | head -1 || echo FAIL) ($(command -v ubridge || echo none))"
 echo "ubridge caps  : $(getcap "$(command -v ubridge)" 2>/dev/null | awk '{print $2}' || echo 'FAIL')"
 echo "docker        : $(docker --version 2>/dev/null || echo 'FAIL')"
-echo "dynamips      : $({ dynamips 2>&1 || true; } | grep -o "version [0-9.]*" | head -1)"
+echo "dynamips      : $({ dynamips 2>&1 || true; } | grep -o "version [0-9.]*" | head -1)"   # dynamips without args exits non-zero
 echo "dumpcap caps  : $(getcap /usr/bin/dumpcap 2>/dev/null | awk '{print $2}' || echo 'FAIL')"
 echo "groups (file) : $(id -nG "$USER")"
 echo "lightdm sess. : $(grep -h user-session /etc/lightdm/lightdm.conf.d/50-xfce.conf 2>/dev/null || echo FAIL)"
