@@ -1,0 +1,6 @@
+#!/bin/sh
+# Part 2-B : multicast VXLAN on router-junsan-1 (BUM -> group 239.1.1.1)
+ip link del vxlan10 2>/dev/null
+ip link add vxlan10 type vxlan id 10 dev eth0 group 239.1.1.1 dstport 4789
+ip link set vxlan10 up
+ip link set vxlan10 master br0

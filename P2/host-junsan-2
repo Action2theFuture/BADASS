@@ -1,0 +1,10 @@
+# ============================================================
+# host-junsan-2 : BADASS Part 2 - end device
+# ============================================================
+# Overlay subnet 30.1.1.0/24, reached through VXLAN 10 on router-junsan-2
+# Applied at boot by GNS3 (Edit config -> /etc/network/interfaces)
+# No route / gateway needed: host-junsan-1 is on the same L2 (VNI 10)
+auto eth0
+iface eth0 inet static
+    address 30.1.1.2
+    netmask 255.255.255.0
