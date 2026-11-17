@@ -7,7 +7,7 @@
 #          A missing name makes GNS3 try "docker pull" (-> docker login prompt).
 # =============================================================================
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."      # repo root
 
 HOST_IMG="badass-host:1.0"
 ROUTER_IMG="badass-router:1.0"

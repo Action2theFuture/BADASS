@@ -5,7 +5,7 @@
 #                           vagrant up --provider=utm     (fallback: UTM + vagrant_utm plugin)
 #   * 42 cluster (amd64)  : vagrant up                    (VirtualBox, amd64 box)
 # Vagrant >= 2.4 picks the box architecture matching the host CPU automatically.
-# Provisioning = the same scripts used by hand: setup_vm.sh + build_images.sh
+# Provisioning = the same scripts used by hand: vm/setup_vm.sh + vm/build_images.sh
 # =============================================================================
 
 VM_NAME = "badass-junsan"
@@ -20,7 +20,7 @@ Vagrant.configure("2") do |config|
   # After editing on the host: `vagrant rsync` (or keep `vagrant rsync-auto` running).
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.synced_folder ".", "/home/vagrant/badass", type: "rsync",
-    rsync__exclude: [".vagrant/", ".git/", "*.tgz"]
+    rsync__exclude: [".vagrant/", ".git/", "*.tgz", "*.log"]
 
   # --- VirtualBox: default provider on both the Mac and the cluster ----------
   config.vm.provider "virtualbox" do |vb|
@@ -48,14 +48,14 @@ Vagrant.configure("2") do |config|
   config.vm.provision "setup", type: "shell", privileged: false, inline: <<-SHELL
     set -e
     cd ~/badass
-    bash setup_vm.sh
+    bash vm/setup_vm.sh
   SHELL
 
   # 'sg docker' : the docker group added above is not active in this session yet.
   config.vm.provision "images", type: "shell", privileged: false, inline: <<-SHELL
     set -e
     cd ~/badass
-    sg docker -c ./build_images.sh
+    sg docker -c vm/build_images.sh
   SHELL
 
   # Reboot once so groups, keyboard layout and the Xfce session take effect.
