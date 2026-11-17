@@ -1,0 +1,4 @@
+# Vagrant state (per machine, never commit)
+.vagrant/
+*.tgz
+*.log
