@@ -1,0 +1,36 @@
+#!/bin/sh
+# Part 3 : router-junsan-2, leaf / VTEP (loopback 1.1.1.2)
+
+# underlay addressing: loopback (router ID, VTEP, BGP source) + /30 link to the spine
+# eth1 (host side) gets no IP: it becomes a bridge port
+vtysh -c 'configure terminal' \
+      -c 'interface lo'   -c 'ip address 1.1.1.2/32' \
+      -c 'interface eth0' -c 'ip address 10.1.1.2/30'
+
+# underlay routing: OSPF on every interface, backbone area 0
+vtysh -c 'configure terminal' \
+      -c 'router ospf' -c 'network 0.0.0.0/0 area 0'
+
+# overlay data plane (kernel): br0 + vxlan10 sourced from the loopback
+#   - no "remote" and no "group": remote VTEPs come from BGP EVPN (type 3)
+#   - nolearning: remote MACs come from BGP EVPN (type 2), not from traffic
+ip link del vxlan10 2>/dev/null
+ip link del br0 2>/dev/null
+ip link add br0 type bridge
+ip link set br0 up
+ip link add vxlan10 type vxlan id 10 local 1.1.1.2 dstport 4789 nolearning
+ip link set vxlan10 master br0
+ip link set vxlan10 up
+ip link set eth1 master br0
+
+# overlay control plane: iBGP AS 1 towards the Route Reflector (1.1.1.1)
+#   - advertise-all-vni: announce local VNIs (type 3) and local MACs (type 2)
+vtysh -c 'configure terminal' \
+      -c 'router bgp 1' \
+      -c 'no bgp default ipv4-unicast' \
+      -c 'neighbor 1.1.1.1 remote-as 1' \
+      -c 'neighbor 1.1.1.1 update-source lo' \
+      -c 'address-family l2vpn evpn' \
+      -c 'neighbor 1.1.1.1 activate' \
+      -c 'advertise-all-vni' \
+      -c 'exit-address-family'

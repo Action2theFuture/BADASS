@@ -1,0 +1,29 @@
+#!/bin/sh
+# Part 3 : router-junsan-1, spine + route reflector (loopback 1.1.1.1)
+
+# underlay addressing: loopback (router ID, BGP source) + /30 links to the leaves
+vtysh -c 'configure terminal' \
+      -c 'interface lo'   -c 'ip address 1.1.1.1/32' \
+      -c 'interface eth0' -c 'ip address 10.1.1.1/30' \
+      -c 'interface eth1' -c 'ip address 10.1.1.5/30' \
+      -c 'interface eth2' -c 'ip address 10.1.1.9/30'
+
+# underlay routing: OSPF on every interface, backbone area 0
+vtysh -c 'configure terminal' \
+      -c 'router ospf' -c 'network 0.0.0.0/0 area 0'
+
+# overlay control plane: iBGP AS 1, this router is the Route Reflector
+#   - leaves are accepted dynamically from 1.1.1.0/29 (bgp listen range)
+#   - sessions use loopbacks (update-source lo), so any working path keeps them up
+#   - only the L2VPN EVPN family is exchanged; leaves are RR clients
+vtysh -c 'configure terminal' \
+      -c 'router bgp 1' \
+      -c 'no bgp default ipv4-unicast' \
+      -c 'neighbor ibgp peer-group' \
+      -c 'neighbor ibgp remote-as 1' \
+      -c 'neighbor ibgp update-source lo' \
+      -c 'bgp listen range 1.1.1.0/29 peer-group ibgp' \
+      -c 'address-family l2vpn evpn' \
+      -c 'neighbor ibgp activate' \
+      -c 'neighbor ibgp route-reflector-client' \
+      -c 'exit-address-family'
