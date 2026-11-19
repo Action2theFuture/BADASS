@@ -16,6 +16,12 @@ GUEST    := /home/vagrant/badass
 export LC_ALL := C.UTF-8
 export LANG   := C.UTF-8
 
+# 42 cluster: home is ~4.6 GB -> keep the Vagrant box and the VM disk on /goinfre (local, large)
+ifneq ($(wildcard /goinfre),)
+export VAGRANT_HOME ?= /goinfre/$(USER)/vagrant.d
+GOINFRE_VMS := /goinfre/$(USER)/VirtualBoxVMs
+endif
+
 RUN      = $(VAGRANT) ssh -c
 CTL      = python3 $(GUEST)/scripts/gns3ctl.py
 SSHCFG   = .vagrant/ssh-config
@@ -29,6 +35,11 @@ help:
 
 # ------------------------------------------------------------------- VM --
 up:
+ifdef GOINFRE_VMS
+	@mkdir -p $(VAGRANT_HOME) $(GOINFRE_VMS)
+	@VBoxManage setproperty machinefolder $(GOINFRE_VMS)
+	@echo "[*] cluster: box -> $(VAGRANT_HOME), VM disk -> $(GOINFRE_VMS)"
+endif
 	$(VAGRANT) up
 
 gui:
@@ -58,8 +69,9 @@ images: sync
 	$(VAGRANT) provision --provision-with images
 
 ## copy host edits into the VM (one-way, host -> VM)
+## VM not running -> go through `make up` so the /goinfre settings are applied first
 sync:
-	@$(VAGRANT) status --machine-readable | grep -q ',state,running' || $(VAGRANT) up
+	@$(VAGRANT) status --machine-readable | grep -q ',state,running' || $(MAKE) --no-print-directory up
 	@$(VAGRANT) rsync >/dev/null && echo "[+] host -> VM sync done"
 
 # ---------------------------------------------------------------- tests --
