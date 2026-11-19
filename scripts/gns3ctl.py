@@ -14,6 +14,8 @@ GUI would use, so GUI and CLI see the same projects and nodes).
   gns3ctl.py down                        stop nodes and close every opened project
   gns3ctl.py export P3 [file]            write a portable project (no images)
 """
+import base64
+import configparser
 import json
 import os
 import shutil
@@ -29,6 +31,24 @@ PORT = int(os.environ.get("GNS3_PORT", "3080"))
 BASE = f"http://{HOST}:{PORT}/v2"
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LOG = os.path.expanduser("~/gns3server.log")
+# The local server started by the GNS3 GUI enables HTTP Basic auth (user "admin",
+# random password) and stores it here. Our own server (started below) has no auth.
+SERVER_CONF = os.path.expanduser("~/.config/GNS3/2.2/gns3_server.conf")
+
+
+def auth_headers():
+    """Basic auth header if the server config enables authentication."""
+    cfg = configparser.ConfigParser()
+    try:
+        cfg.read(SERVER_CONF)
+        if cfg.getboolean("Server", "auth", fallback=False):
+            user = cfg.get("Server", "user", fallback="").strip()
+            password = cfg.get("Server", "password", fallback="").strip()
+            token = base64.b64encode(f"{user}:{password}".encode()).decode()
+            return {"Authorization": f"Basic {token}"}
+    except (configparser.Error, OSError):
+        pass
+    return {}
 
 
 def die(msg):
@@ -38,7 +58,7 @@ def die(msg):
 
 def api(method, path, body=None, raw=None, timeout=120):
     """Call the API; body is JSON, raw is bytes (import)."""
-    data, headers = None, {}
+    data, headers = None, auth_headers()
     if raw is not None:
         data = raw
         headers["Content-Type"] = "application/octet-stream"
@@ -60,9 +80,14 @@ def api(method, path, body=None, raw=None, timeout=120):
 
 
 def server_up():
+    req = urllib.request.Request(BASE + "/version", headers=auth_headers())
     try:
-        with urllib.request.urlopen(BASE + "/version", timeout=2) as r:
+        with urllib.request.urlopen(req, timeout=2) as r:
             return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 401:   # a server IS running (GNS3 GUI) but our credentials are wrong
+            die(f"gns3server on {HOST}:{PORT} requires authentication; credentials in {SERVER_CONF} rejected")
+        return None
     except (urllib.error.URLError, OSError, ValueError):
         return None
 
